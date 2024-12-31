@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 	"os"
+	"time"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/joho/godotenv"
@@ -14,11 +14,36 @@ import (
 	emailVerifier "github.com/AfterShip/email-verifier"
 )
 
+// Middleware for token verification
+func verifyToken(next httprouter.Handle) httprouter.Handle {
+	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+		authToken := r.Header.Get("Authorization")
+
+		if authToken == "" {
+			http.Error(w, "Authorization token is required", http.StatusUnauthorized)
+			return
+		}
+
+		expectedToken := os.Getenv("AUTH_TOKEN")
+		if expectedToken == "" {
+			http.Error(w, "Server misconfiguration: AUTH_TOKEN not set", http.StatusInternalServerError)
+			return
+		}
+
+		if authToken != expectedToken {
+			http.Error(w, "Invalid authorization token", http.StatusForbidden)
+			return
+		}
+		next(w, r, ps)
+	}
+}
+
+// GetEmailVerification handles email verification requests
 func GetEmailVerification(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	verifier := emailVerifier.NewVerifier().EnableSMTPCheck().Proxy(os.Getenv("PROXY_URL"))
 	ret, err := verifier.Verify(ps.ByName("email"))
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	if !ret.Syntax.Valid {
@@ -28,12 +53,11 @@ func GetEmailVerification(w http.ResponseWriter, r *http.Request, ps httprouter.
 
 	bytes, err := json.Marshal(ret)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	_, _ = fmt.Fprint(w, string(bytes))
-
 }
 
 func main() {
@@ -49,9 +73,15 @@ func main() {
 		log.Fatal("PROXY_URL environment variable not set")
 	}
 
+	// Ensure AUTH_TOKEN is set
+	if os.Getenv("AUTH_TOKEN") == "" {
+		log.Fatal("AUTH_TOKEN environment variable not set")
+	}
+
 	router := httprouter.New()
 
-	router.GET("/v1/:email/verification", GetEmailVerification)
+	// Use the middleware for token verification
+	router.GET("/v1/:email/verification", verifyToken(GetEmailVerification))
 
 	server := &http.Server{
 		Addr:         ":8080",
@@ -60,5 +90,6 @@ func main() {
 		WriteTimeout: 30 * time.Second,
 	}
 
+	log.Println("Server is running on port 8080...")
 	log.Fatal(server.ListenAndServe())
 }
