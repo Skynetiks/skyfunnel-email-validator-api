@@ -14,28 +14,31 @@ import (
 	emailVerifier "github.com/AfterShip/email-verifier"
 )
 
-// Middleware for token verification
 func verifyToken(next httprouter.Handle) httprouter.Handle {
-	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-		authToken := r.Header.Get("Authorization")
+    return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+        log.Println("verifyToken middleware executed")
 
-		if authToken == "" {
-			http.Error(w, "Authorization token is required", http.StatusUnauthorized)
-			return
-		}
+        authToken := r.Header.Get("Authorization")
+        log.Println("Authorization header received:", authToken)
 
-		expectedToken := os.Getenv("AUTH_TOKEN")
-		if expectedToken == "" {
-			http.Error(w, "Server misconfiguration: AUTH_TOKEN not set", http.StatusInternalServerError)
-			return
-		}
+        expectedToken := os.Getenv("AUTH_TOKEN")
+        log.Println("Expected token from environment:", expectedToken)
 
-		if authToken != expectedToken {
-			http.Error(w, "Invalid authorization token", http.StatusForbidden)
-			return
-		}
-		next(w, r, ps)
-	}
+        if authToken == "" {
+            log.Println("Missing Authorization header")
+            http.Error(w, "Authorization token is required", http.StatusUnauthorized)
+            return
+        }
+
+        if authToken != expectedToken {
+            log.Println("Invalid Authorization token")
+            http.Error(w, "Invalid authorization token", http.StatusForbidden)
+            return
+        }
+
+        log.Println("Authorization successful")
+        next(w, r, ps)
+    }
 }
 
 // GetEmailVerification handles email verification requests
