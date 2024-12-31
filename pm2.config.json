@@ -1,10 +1,11 @@
 {
-  "apps": [
-    {
-      "name": "skyfunnel-email-verifier-api",
-      "script": "./start.sh",
-      "cwd": "./",
-      "watch": true
-    }
-  ]
-}
+    "apps": [
+      {
+        "name": "skyfunnel-email-verifier-api",
+        "script": "./skyfunnel-email-verifier-api",
+        "cwd": "./",
+        "watch": true
+      }
+    ]
+  }
+  
