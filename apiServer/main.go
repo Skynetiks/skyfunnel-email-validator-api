@@ -15,35 +15,49 @@ import (
 )
 
 func verifyToken(next httprouter.Handle) httprouter.Handle {
-    return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-        log.Println("verifyToken middleware executed")
+	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+		log.Println("verifyToken middleware executed")
 
-        authToken := r.Header.Get("Authorization")
-        log.Println("Authorization header received:", authToken)
+		authToken := r.Header.Get("Authorization")
+		log.Println("Authorization header received:", authToken)
 
-        expectedToken := os.Getenv("AUTH_TOKEN")
-        log.Println("Expected token from environment:", expectedToken)
+		expectedToken := os.Getenv("AUTH_TOKEN")
+		log.Println("Expected token from environment:", expectedToken)
 
-        if authToken == "" {
-            log.Println("Missing Authorization header")
-            http.Error(w, "Authorization token is required", http.StatusUnauthorized)
-            return
-        }
+		if authToken == "" {
+			log.Println("Missing Authorization header")
+			http.Error(w, "Authorization token is required", http.StatusUnauthorized)
+			return
+		}
 
-        if authToken != expectedToken {
-            log.Println("Invalid Authorization token")
-            http.Error(w, "Invalid authorization token", http.StatusForbidden)
-            return
-        }
+		if authToken != expectedToken {
+			log.Println("Invalid Authorization token")
+			http.Error(w, "Invalid authorization token", http.StatusForbidden)
+			return
+		}
 
-        log.Println("Authorization successful")
-        next(w, r, ps)
-    }
+		log.Println("Authorization successful")
+		next(w, r, ps)
+	}
 }
 
 // GetEmailVerification handles email verification requests
 func GetEmailVerification(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	verifier := emailVerifier.NewVerifier().EnableSMTPCheck().Proxy(os.Getenv("PROXY_URL"))
+	fromEmail := os.Getenv("FROM_EMAIL")
+	heloName := os.Getenv("HELO_NAME")
+	proxyURL := os.Getenv("PROXY_URL")
+
+	if fromEmail == "" || heloName == "" {
+		http.Error(w, "FROM_EMAIL and HELO_NAME must be set in environment variables", http.StatusInternalServerError)
+		return
+	}
+
+	verifier := emailVerifier.NewVerifier().
+		EnableSMTPCheck().
+		Proxy(proxyURL).
+		FromEmail(fromEmail).
+		HelloName(heloName)
+
 	ret, err := verifier.Verify(ps.ByName("email"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -70,15 +84,12 @@ func main() {
 		log.Println("No .env file found. Make sure to set environment variables manually.")
 	}
 
-	// Get the proxy URL from the environment variable
-	proxyURL := os.Getenv("PROXY_URL")
-	if proxyURL == "" {
-		log.Fatal("PROXY_URL environment variable not set")
-	}
-
-	// Ensure AUTH_TOKEN is set
+	// Ensure required environment variables are set
 	if os.Getenv("AUTH_TOKEN") == "" {
 		log.Fatal("AUTH_TOKEN environment variable not set")
+	}
+	if os.Getenv("FROM_EMAIL") == "" || os.Getenv("HELO_NAME") == "" {
+		log.Fatal("FROM_EMAIL and HELO_NAME environment variables must be set")
 	}
 
 	router := httprouter.New()
