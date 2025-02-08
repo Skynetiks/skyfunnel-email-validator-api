@@ -63,7 +63,8 @@ func GetEmailVerification(w http.ResponseWriter, r *http.Request, ps httprouter.
 
 	ret, err := verifier.Verify(ps.ByName("email"))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		// http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	if !ret.Syntax.Valid {
@@ -71,10 +72,10 @@ func GetEmailVerification(w http.ResponseWriter, r *http.Request, ps httprouter.
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	bytes, err := json.Marshal(ret)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		// http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -188,4 +189,13 @@ func main() {
 
 	log.Println("Server is running on port 8080...")
 	log.Fatal(server.ListenAndServe())
+}
+
+func respondWithError(w http.ResponseWriter, status int, errMsg string) {
+	response := map[string]string{"error": errMsg}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+
+	json.NewEncoder(w).Encode(response)
 }
