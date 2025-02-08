@@ -71,7 +71,7 @@ func GetEmailVerification(w http.ResponseWriter, r *http.Request, ps httprouter.
 		_, _ = fmt.Fprint(w, "email address syntax is invalid")
 		return
 	}
-
+	w.Header().Set("Content-Type", "application/json")
 	bytes, err := json.Marshal(ret)
 	if err != nil {
 		// http.Error(w, err.Error(), http.StatusInternalServerError)
