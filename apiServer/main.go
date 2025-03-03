@@ -55,6 +55,8 @@ func GetEmailVerification(w http.ResponseWriter, r *http.Request, ps httprouter.
 		return
 	}
 
+	fmt.Println("Verifying email:", ps.ByName("email"))
+
 	verifier := emailVerifier.NewVerifier().
 		EnableSMTPCheck().
 		Proxy(proxyURL).
@@ -68,9 +70,12 @@ func GetEmailVerification(w http.ResponseWriter, r *http.Request, ps httprouter.
 		return
 	}
 	if !ret.Syntax.Valid {
-		_, _ = fmt.Fprint(w, "email address syntax is invalid")
+		_, _ = fmt.Fprint(w, "email address syntax is invalid", ps.ByName("email"))
 		return
 	}
+
+	fmt.Println()
+
 	w.Header().Set("Content-Type", "application/json")
 	bytes, err := json.Marshal(ret)
 	if err != nil {
@@ -134,6 +139,7 @@ func BulkEmailVerification(w http.ResponseWriter, r *http.Request, _ httprouter.
 			result, err := verifier.Verify(email)
 			res := BulkVerificationResult{Email: email}
 
+			fmt.Println("Result for email:", email, "is:", result)
 			if err != nil {
 				res.Error = err.Error()
 			} else {
